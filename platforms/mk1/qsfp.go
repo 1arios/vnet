@@ -147,11 +147,11 @@ func i2cCloseMux() (err error) {
         return nil
 }
 
-func readWriteQsfp(addr uint8, b []byte, isWrite bool) (err error) {
+func readWriteQsfp(i2c_addr int, addr uint8, b []byte, isWrite bool) (err error) {
 	i, n_left := 0, len(b)
 
 	for n_left >= 2 {
-		err = i2c.Do(0, qsfp_addr, func(bus *i2c.Bus) (err error) {
+		err = i2c.Do(0, i2c_addr, func(bus *i2c.Bus) (err error) {
 			var d i2c.SMBusData
 			if isWrite {
 				d[0] = b[i+0]
@@ -174,7 +174,7 @@ func readWriteQsfp(addr uint8, b []byte, isWrite bool) (err error) {
 	}
 
 	for n_left > 0 {
-		err = i2c.Do(0, qsfp_addr, func(bus *i2c.Bus) (err error) {
+		err = i2c.Do(0, i2c_addr, func(bus *i2c.Bus) (err error) {
 			var d i2c.SMBusData
 			if isWrite {
 				d[0] = b[i+0]
@@ -577,11 +577,15 @@ func (m *qsfpMain) signalChange(signal sfp.QsfpSignal, changedPorts, newValues u
 				}
 
 				// if qsfp is an optic publish static monitoring thresholds
-				if !strings.Contains(q.Ident.Compliance, "CR") && (q.Ident.Compliance != "") && (q.Ident.Id != "SFP/SFP+/SFP28"){
-					// enable laser
-					q.TxEnable(0xf, 0xf)
+				if !strings.Contains(q.Ident.Compliance, "CR") && (q.Ident.Compliance != "") {
+					if (q.Ident.Id != "SFP/SFP+/SFP28") {
+						// enable laser
+						q.TxEnable(0xf, 0xf)
+						q.Monitoring(false)
+					} else {
+						q.Monitoring(true)
+					}
 
-					q.Monitoring()
 					for _, k := range sfp.StaticMonitoringRedisFields {
 						f := "xeth" + strconv.Itoa(int(port)+PortBase()) + "." + k
 						if strings.Contains(k, "temperature") {
@@ -749,6 +753,7 @@ func (m *qsfpMain) signalChange(signal sfp.QsfpSignal, changedPorts, newValues u
 					lasts[f] = ""
 				}
 				if !strings.Contains(q.Ident.Compliance, "CR") && q.Ident.Compliance != "" {
+
 					for _, k := range sfp.StaticMonitoringRedisFields {
 						f := "xeth" + strconv.Itoa(int(port)+PortBase()) + "." + k
 						pub.Print("delete: ", f)
@@ -760,6 +765,7 @@ func (m *qsfpMain) signalChange(signal sfp.QsfpSignal, changedPorts, newValues u
 						lasts[f] = ""
 					}
 				}
+
 				//enable reset and low power mode
 				mod.SfpReset(true)
 				mod.SfpSetLowPowerMode(true)
@@ -820,8 +826,13 @@ func (m *qsfpMain) poll() {
 				q := &mod.q
 				// if qsfp is present and is optic poll monitoring fields
 				if q.AllEepromValid {
-					if !strings.Contains(q.Ident.Compliance, "CR") && (q.Ident.Compliance != "") && (q.Ident.Id != "SFP/SFP+/SFP28"){
-						q.Monitoring()
+					if !strings.Contains(q.Ident.Compliance, "CR") && (q.Ident.Compliance != "") {
+						if (q.Ident.Id != "SFP/SFP+/SFP28"){
+							q.Monitoring(false)
+						} else {
+							q.Monitoring(true)
+						}
+
 						for _, k := range sfp.DynamicMonitoringRedisFields {
 							f := "xeth" + strconv.Itoa(int(port)+PortBase()) + "." + k
 							if strings.Contains(k, "qsfp.temperature.units.C") {
@@ -884,27 +895,6 @@ func (m *qsfpMain) poll() {
 									lasts[f] = s
 								}
 							}
-							if strings.Contains(k, "qsfp.rx2.power.units.mW") {
-								s := q.Mon.RxPower[1]
-								if s != lasts[f] {
-									pub.Print(f, ": ", s)
-									lasts[f] = s
-								}
-							}
-							if strings.Contains(k, "qsfp.rx3.power.units.mW") {
-								s := q.Mon.RxPower[2]
-								if s != lasts[f] {
-									pub.Print(f, ": ", s)
-									lasts[f] = s
-								}
-							}
-							if strings.Contains(k, "qsfp.rx4.power.units.mW") {
-								s := q.Mon.RxPower[3]
-								if s != lasts[f] {
-									pub.Print(f, ": ", s)
-									lasts[f] = s
-								}
-							}
 							if strings.Contains(k, "qsfp.tx1.power.units.mW") {
 								s := q.Mon.TxPower[0]
 								if s != lasts[f] {
@@ -912,50 +902,8 @@ func (m *qsfpMain) poll() {
 									lasts[f] = s
 								}
 							}
-							if strings.Contains(k, "qsfp.tx2.power.units.mW") {
-								s := q.Mon.TxPower[1]
-								if s != lasts[f] {
-									pub.Print(f, ": ", s)
-									lasts[f] = s
-								}
-							}
-							if strings.Contains(k, "qsfp.tx3.power.units.mW") {
-								s := q.Mon.TxPower[2]
-								if s != lasts[f] {
-									pub.Print(f, ": ", s)
-									lasts[f] = s
-								}
-							}
-							if strings.Contains(k, "qsfp.tx4.power.units.mW") {
-								s := q.Mon.TxPower[3]
-								if s != lasts[f] {
-									pub.Print(f, ": ", s)
-									lasts[f] = s
-								}
-							}
 							if strings.Contains(k, "qsfp.tx1.bias.units.mA") {
 								s := q.Mon.TxBias[0]
-								if s != lasts[f] {
-									pub.Print(f, ": ", s)
-									lasts[f] = s
-								}
-							}
-							if strings.Contains(k, "qsfp.tx2.bias.units.mA") {
-								s := q.Mon.TxBias[1]
-								if s != lasts[f] {
-									pub.Print(f, ": ", s)
-									lasts[f] = s
-								}
-							}
-							if strings.Contains(k, "qsfp.tx3.bias.units.mA") {
-								s := q.Mon.TxBias[2]
-								if s != lasts[f] {
-									pub.Print(f, ": ", s)
-									lasts[f] = s
-								}
-							}
-							if strings.Contains(k, "qsfp.tx4.bias.units.mA") {
-								s := q.Mon.TxBias[3]
 								if s != lasts[f] {
 									pub.Print(f, ": ", s)
 									lasts[f] = s
@@ -974,22 +922,88 @@ func (m *qsfpMain) poll() {
 									lasts[f] = s
 								}
 							}
-							if strings.Contains(k, "qsfp.alarms.channels") {
-								s := q.Alarms.Channels
-								if s == "" {
-									s = "none"
-								}
-								if s != lasts[f] {
-									if lasts[f] != "" && s != "none" {
-										log.Print("warning: xeth" + strconv.Itoa(int(port)+PortBase()) + " qsfp channel alarm: " + s)
+							// only when qsfp
+							if (q.Ident.Id != "SFP/SFP+/SFP28"){
+								if strings.Contains(k, "qsfp.rx2.power.units.mW") {
+									s := q.Mon.RxPower[1]
+									if s != lasts[f] {
+										pub.Print(f, ": ", s)
+										lasts[f] = s
 									}
-									pub.Print(f, ": ", s)
-									lasts[f] = s
+								}
+								if strings.Contains(k, "qsfp.rx3.power.units.mW") {
+									s := q.Mon.RxPower[2]
+									if s != lasts[f] {
+										pub.Print(f, ": ", s)
+										lasts[f] = s
+									}
+								}
+								if strings.Contains(k, "qsfp.rx4.power.units.mW") {
+									s := q.Mon.RxPower[3]
+									if s != lasts[f] {
+										pub.Print(f, ": ", s)
+										lasts[f] = s
+									}
+								}
+								if strings.Contains(k, "qsfp.tx2.power.units.mW") {
+									s := q.Mon.TxPower[1]
+									if s != lasts[f] {
+										pub.Print(f, ": ", s)
+										lasts[f] = s
+									}
+								}
+								if strings.Contains(k, "qsfp.tx3.power.units.mW") {
+									s := q.Mon.TxPower[2]
+									if s != lasts[f] {
+										pub.Print(f, ": ", s)
+										lasts[f] = s
+									}
+								}
+								if strings.Contains(k, "qsfp.tx4.power.units.mW") {
+									s := q.Mon.TxPower[3]
+									if s != lasts[f] {
+										pub.Print(f, ": ", s)
+										lasts[f] = s
+									}
+								}
+								if strings.Contains(k, "qsfp.tx2.bias.units.mA") {
+									s := q.Mon.TxBias[1]
+									if s != lasts[f] {
+										pub.Print(f, ": ", s)
+										lasts[f] = s
+									}
+								}
+								if strings.Contains(k, "qsfp.tx3.bias.units.mA") {
+									s := q.Mon.TxBias[2]
+									if s != lasts[f] {
+										pub.Print(f, ": ", s)
+										lasts[f] = s
+									}
+								}
+								if strings.Contains(k, "qsfp.tx4.bias.units.mA") {
+									s := q.Mon.TxBias[3]
+									if s != lasts[f] {
+										pub.Print(f, ": ", s)
+										lasts[f] = s
+									}
+								}
+								if strings.Contains(k, "qsfp.alarms.channels") {
+									s := q.Alarms.Channels
+									if s == "" {
+										s = "none"
+									}
+									if s != lasts[f] {
+										if lasts[f] != "" && s != "none" {
+											log.Print("warning: xeth" + strconv.Itoa(int(port)+PortBase()) + " qsfp channel alarm: " + s)
+										}
+										pub.Print(f, ": ", s)
+										lasts[f] = s
+									}
 								}
 							}
 						}
-
 					}
+
 				}
 			}
 		}
@@ -1024,9 +1038,9 @@ func (q *qsfpModule) SfpSetLowPowerMode(is_active bool) {
 		writeSignal(q.port_index, false, false)
 	}
 }
-func (q *qsfpModule) SfpReadWrite(offset uint, p []uint8, isWrite bool) (write_ok bool) {
+func (q *qsfpModule) SfpReadWrite(i2c_addr uint8, offset uint, p []uint8, isWrite bool) (write_ok bool) {
 	i2cMuxSelectPort(q.port_index)
-	err := readWriteQsfp(uint8(offset), p, isWrite)
+	err := readWriteQsfp(int(i2c_addr), uint8(offset), p, isWrite)
 	if write_ok = err == nil; !write_ok {
 		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.ENXIO {
 			panic(err)
@@ -1048,7 +1062,7 @@ func qsfpInit(v *vnet.Vnet, p *fe1_platform.Platform) {
 		q := &m.module_by_port[port]
 		q.port_index = uint(port ^ 1)
 		q.m = m
-		q.q.Init(q)
+		q.q.Init(q, qsfp_addr)
 		sp := fe1_platform.SwitchPort{Switch: 0, Port: uint8(port)}
 		p.QsfpModules[sp] = &q.q
 	}

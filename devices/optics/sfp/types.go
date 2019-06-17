@@ -386,3 +386,39 @@ var DynamicMonitoringRedisFields = []string{
 	"qsfp.tx4.bias.units.mA",
 	"qsfp.tx4.power.units.mW",
 }
+
+type ModuleAlarms_sfpp uint16
+
+func (i ModuleAlarms_sfpp) String() string {
+	var t = [...]string{
+		0x0001: "Tx Power Low Alarm",
+		0x0002: "Tx Power High Alarm",
+		0x0004: "Tx Bias Low Alarm",
+		0x0008: "Tx Bias High Alarm",
+		0x0010: "Vcc Low Alarm",
+		0x0020: "Vcc High Alarm",
+		0x0040: "Temp Low Alarm",
+		0x0080: "Temp High Alarm",
+		0x4000: "Rx Power Low Alarm",
+		0x8000: "Rx Power High Alarm",
+	}
+	return elib.Stringer(t[:], int(i))
+}
+
+type ModuleWarnings_sfpp uint16
+
+func (i ModuleWarnings_sfpp) String() string {
+	var t = [...]string{
+		0x0001: "Tx Power Low Alarm",
+		0x0002: "Tx Power High Alarm",
+		0x0004: "Tx Bias Low Alarm",
+		0x0008: "Tx Bias High Alarm",
+		0x0010: "Vcc Low Alarm",
+		0x0020: "Vcc High Alarm",
+		0x0040: "Temp Low Alarm",
+		0x0080: "Temp High Alarm",
+		0x4000: "Rx Power Low Alarm",
+		0x8000: "Rx Power High Alarm",
+	}
+	return elib.Stringer(t[:], int(i))
+}

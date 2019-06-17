@@ -177,3 +177,63 @@ type qsfpThresholdRegs struct {
 	thresholdInterruptDisable [4]reg8
 	_                         [256 - 246]reg8
 }
+
+// Sfp+ Diagnostic Memory Map
+//
+type sfppDiagRegs struct {
+	temperature		qsfpThreshold	//[00-07]
+	supplyVoltage		qsfpThreshold	//[08-15]
+	txBiasCurrent		qsfpThreshold	//[16-23]
+	txPower			qsfpThreshold	//[24-31]
+	rxPower			qsfpThreshold	//[32-39]
+	_			[16]reg8	//[40-55]
+	_			[36]reg8	//[56-91]
+	_			[3]reg8		//[92-94]
+	checksum_0_to_94	reg8		//[95]
+
+	// Module Monitoring Values.
+	internallyMeasured struct {		//[96-105]
+		temperature	regi16		// 16 signed; units of degrees Celsius/256
+		supplyVoltage	reg16		// 16 unsigned; units of 100e-6 volts
+		txBiasCurrent	reg16		// 16 unsigned; nits of 2e-6 Amps
+		txPower		reg16
+		rxPower		reg16		// 16 unsigned; units of 1e-7 Watts
+	}
+	_			[4]reg8		//[106-109]
+
+	//[7]=	Tx Disable State
+	//[6]=	Soft Tx Disable Select
+	//[5]=	RS(1) State
+	//[4]=	RS(0) State
+	//[3]=	Soft RS(0) Select
+	//[2]=	Tx_Fault State
+	//[1]=	Rx_LOS state
+	//[0]=	Data_Ready_Bar State
+	status_ctrl		reg8		//[110]
+	_			reg8		//[111]
+
+	monitorInterruptStatus struct {
+		//[0][7]= Temp High Alarm
+		//[0][6]= temp Low Alarm
+		//[0][5]= Vcc High Alarm
+		//[0][4]= Vcc Low Alarm
+		//[0][3]= Tx Bias High Alarm
+		//[0][2]= Tx Bias Low Alarm
+		//[0][1]= Tx Power High Alarm
+		//[0][0]= Tx Power Low Alarm
+		//[1][7]= Rx Power High Alarm
+		//[1][6]= Rx Power Low Alarm
+		moduleAlarms	reg16		//[112-113]
+		_		reg8		//[114]
+		_		reg8		//[115]
+
+		moduleWarnings	reg16		//[116-117]
+
+		//[3]= Soft RS(1) Select
+		//[2]= rsrv
+		//[1]= Power Level Operation State; 0=1.0Watts, 1=1.5Watts
+		//[0]= Power Level Select
+		ext_status_ctrl	reg8		//[118]
+		_		reg8		//[119]
+	}
+}
